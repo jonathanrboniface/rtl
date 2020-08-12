@@ -1,6 +1,7 @@
 steps:
   # build the container image
 - name: "gcr.io/cloud-builders/docker"
+  dir: ./application/rlt-test/
   args: ["build", "-t", "gcr.io/$PROJECT_ID/rtl-test", "."]
   # push container image
 - name: "gcr.io/cloud-builders/docker"
