@@ -1,0 +1,13 @@
+apiVersion: v1
+entries:
+  rlt-test:
+  - apiVersion: v1
+    appVersion: "1.0"
+    created: 2020-08-12T13:42:08.41841206+01:00
+    description: A Helm chart for Kubernetes
+    digest: 7bc857a4d46034671ac6c2c7012c728d895ea19a0c0417603f97edf588005fbd
+    name: rlt-test
+    urls:
+    - https://console.cloud.google.com/storage/browser/rtl-test-gcs/rlt-test-0.1.0.tgz
+    version: 0.1.0
+generated: 2020-08-12T13:42:08.397009306+01:00

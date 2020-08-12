@@ -17,10 +17,11 @@ provider "kubernetes" {
 }
 
 resource "google_container_cluster" "primary" {
-  name               = "my-vpc-native-cluster"
-  location           = var.location
-  project            = var.project
-  initial_node_count = 1
+  name                     = "my-vpc-native-cluster"
+  location                 = var.location
+  project                  = var.project
+  remove_default_node_pool = true
+  initial_node_count       = 1
 
   network    = "default"
   subnetwork = "default"
@@ -58,6 +59,7 @@ resource "google_container_node_pool" "primary" {
   }
 }
 
+
 output "kubernetes_cluster_name" {
   value       = google_container_cluster.primary.name
   description = "GKE Cluster Name"
@@ -67,13 +69,17 @@ output "kubernetes_cluster_name" {
 resource "google_cloudbuild_trigger" "rlt-test" {
   trigger_template {
     branch_name = "master"
-    repo_name   = "my-repo"
+    repo_name   = "rtl-test"
   }
+  project = var.project
 
-  substitutions = {
-    _FOO = "bar"
-    _BAZ = "qux"
-  }
+  #  substitutions = {
+  #    _FOO = "bar"
+  #    _BAZ = "qux"
+  #  }
 
-  filename = "cloudbuild.yaml"
+  filename = "application/rlt-test//cloudbuild.yaml"
 }
+
+
+

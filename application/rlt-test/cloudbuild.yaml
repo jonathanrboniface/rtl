@@ -1,5 +1,15 @@
 steps:
-- name: 'gcr.io/cloud-builders/docker'
-  args: [ 'build', '-t', 'gcr.io/${var.project}/rtl-test', '.' ]
-images:
-- 'gcr.io/${var.project}/quickstart-image'
+  # build the container image
+- name: "gcr.io/cloud-builders/docker"
+  args: ["build", "-t", "gcr.io/$PROJECT_ID/rtl-test", "."]
+  # push container image
+- name: "gcr.io/cloud-builders/docker"
+  args: ["push", "gcr.io/$PROJECT_ID/rtl-test"]
+  # deploy container image to GKE
+- name: "gcr.io/cloud-builders/gke-deploy"
+  args:
+  - run
+  - --filename=./config
+  - --image=gcr.io/$PROJECT_ID/rtl-test:tag
+  - --location=us-central1
+  - --cluster=us-central1
