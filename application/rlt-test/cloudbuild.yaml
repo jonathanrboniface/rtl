@@ -6,10 +6,29 @@ steps:
 - name: "gcr.io/cloud-builders/docker"
   args: ["push", "gcr.io/$PROJECT_ID/rtl-test"]
   # deploy container image to GKE
-- name: "gcr.io/cloud-builders/gke-deploy"
+  # Configure a kubectl workspace for this project
+- name: gcr.io/cloud-builders/kubectl
   args:
-  - run
-  - --filename=./config
-  - --image=gcr.io/$PROJECT_ID/rtl-test:tag
-  - --location=us-central1
-  - --cluster=us-central1
+    - cluster-info
+  env:
+    - CLOUDSDK_COMPUTE_REGION=$_CUSTOM_REGION
+    - CLOUDSDK_CONTAINER_CLUSTER=$_CUSTOM_CLUSTER
+    - KUBECONFIG=/workspace/.kube/config
+  # Deploy with Helm
+  - name: gcr.io/$PROJECT_ID/helm
+    args:
+      - upgrade
+      - -i
+      - my-app
+      - ./kubernetes
+      - --set
+      - image.repository=gcr.io/$PROJECT_ID/rtl-test
+      - -f
+      - ./charts/rlt-test/values.yaml
+    env:
+      - KUBECONFIG=/workspace/.kube/config
+      - TILLERLESS=false
+      - TILLER_NAMESPACE=kube-system
+substitutions:
+  _CUSTOM_REGION: us-central1
+  _CUSTOM_CLUSTER: my-vpc-native-cluster
