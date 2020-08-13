@@ -48,7 +48,7 @@ resource "kubernetes_deployment" "rlt-test" {
       spec {
         container {
           #  image = "nginx:1.7.8"
-          image = "gcr.io/elasticsearch-236916/rlt-test:latest"
+          image = "gcr.io/${var.project}/${var.name}:latest"
           name  = var.name
 
           port {
