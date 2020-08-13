@@ -1,35 +1,61 @@
 steps:
   # build the container image
 - name: "gcr.io/cloud-builders/docker"
-  dir: ./application/rlt-test/
-  args: ["build", "-t", "gcr.io/$PROJECT_ID/rtl-test", "."]
+  args: ["build", "-t", "gcr.io/$PROJECT_ID/rlt-test:latest", "."]
   # push container image
 - name: "gcr.io/cloud-builders/docker"
-  args: ["push", "gcr.io/$PROJECT_ID/rtl-test"]
-  # deploy container image to GKE
-  # Configure a kubectl workspace for this project
-- name: gcr.io/cloud-builders/kubectl
-  args:
-    - cluster-info
-  env:
-    - CLOUDSDK_COMPUTE_REGION=$_CUSTOM_REGION
-    - CLOUDSDK_CONTAINER_CLUSTER=$_CUSTOM_CLUSTER
-    - KUBECONFIG=/workspace/.kube/config
-  # Deploy with Helm
-  - name: gcr.io/$PROJECT_ID/helm
-    args:
-      - upgrade
-      - -i
-      - my-app
-      - ./kubernetes
-      - --set
-      - image.repository=gcr.io/$PROJECT_ID/rtl-test
-      - -f
-      - ./charts/rlt-test/values.yaml
-    env:
-      - KUBECONFIG=/workspace/.kube/config
-      - TILLERLESS=false
-      - TILLER_NAMESPACE=kube-system
-substitutions:
-  _CUSTOM_REGION: us-central1
-  _CUSTOM_CLUSTER: my-vpc-native-cluster
+  args: ["push", "gcr.io/$PROJECT_ID/rlt-test:latest"]
+
+
+
+#   # deploy container image to GKE
+# - name: "gcr.io/cloud-builders/gke-deploy"
+#   args:
+#   - run
+#   - --filename=kubeconfig.yaml
+#   - --image=gcr.io/$PROJECT_ID/rlt-test:latest
+#   - --location=us-central1
+#   - --cluster=my-vpc-native-cluster
+
+
+
+#
+# Recieved below error message when attempting to deploy build directly 
+# Step #2: Error: failed to prepare deployment: failed to parse configuration files "kubeconfig.yaml": 
+# failed to get file info for "kubeconfig.yaml": stat kubeconfig.yaml: no such file or directory
+#
+# 
+# Tested build by deploying it manually from GCR To GKE 
+# kubectl create deployment rlt-test --image=gcr.io/$PROJECT_ID/rlt-test:latest
+# 
+# kubectl create -f deployment.yaml
+#
+
+# Initial workings of helm deployment
+
+# Configure a kubectl workspace for this project
+# - name: gcr.io/cloud-builders/kubectl
+#   args:
+#     - cluster-info
+#   env:
+#     - CLOUDSDK_COMPUTE_REGION=$_CUSTOM_REGION
+#     - CLOUDSDK_CONTAINER_CLUSTER=$_CUSTOM_CLUSTER
+#     - KUBECONFIG=/workspace/.kube/config
+#   # Deploy with Helm
+#   - name: gcr.io/$PROJECT_ID/helm
+#     args:
+#       - upgrade
+#       - -i
+#       - my-app
+#       - ./kubernetes
+#       - --set
+#       - image.repository=gcr.io/$PROJECT_ID/rtl-test
+#       - -f
+#       - ./charts/rlt-test/values.yaml
+#     env:
+#       - KUBECONFIG=/workspace/.kube/config
+#       - TILLERLESS=false
+#       - TILLER_NAMESPACE=kube-system
+# substitutions:
+#   _CUSTOM_REGION: us-central1
+#   _CUSTOM_CLUSTER: my-vpc-native-cluster

@@ -1,20 +1,33 @@
-data "google_client_config" "provider" {}
-
-data "google_container_cluster" "my_cluster" {
-  name     = "my-cluster"
-  location = var.location
-  project  = var.project
+provider "google" {
+  #  credentials = file("../accounts.json")
+  project = var.project
 }
 
-provider "kubernetes" {
-  load_config_file = false
-
-  host  = "https://${data.google_container_cluster.my_cluster.endpoint}"
-  token = data.google_client_config.provider.access_token
-  cluster_ca_certificate = base64decode(
-    data.google_container_cluster.my_cluster.master_auth[0].cluster_ca_certificate,
-  )
+data "google_client_config" "current" {
 }
+
+resource "google_container_registry" "registry" {
+}
+
+data "google_container_registry_image" "default" {
+  name = var.name
+  tag  = "latest"
+}
+
+resource "google_storage_bucket_iam_member" "viewer" {
+  bucket = google_container_registry.registry.id
+  role   = "roles/storage.objectViewer"
+  member = "serviceAccount:${var.service_account}"
+}
+/*
+
+Configure VPN Server and firewall rules to route GKE Ingress through for increased security
+
+Identify and add requirements for lstio service mesh before creating the cluster if necessary 
+
+Explicitly Assign roles to service account and users where necessary to ensure all can access
+
+*/
 
 resource "google_container_cluster" "primary" {
   name                     = "my-vpc-native-cluster"
@@ -23,6 +36,9 @@ resource "google_container_cluster" "primary" {
   remove_default_node_pool = true
   initial_node_count       = 1
 
+  node_config {
+    service_account = var.service_account
+  }
   network    = "default"
   subnetwork = "default"
 
@@ -39,11 +55,22 @@ resource "google_container_node_pool" "primary" {
   project    = var.project
   cluster    = google_container_cluster.primary.name
   node_count = 1
+  #  
+
 
   node_config {
+    service_account = var.service_account
     oauth_scopes = [
+      /*
+      TO DO - Research into each of the below to determine if it is required to conform to least privileged access
+    */
       "https://www.googleapis.com/auth/logging.write",
       "https://www.googleapis.com/auth/monitoring",
+      "https://www.googleapis.com/auth/devstorage.read_only",
+      "https://www.googleapis.com/auth/servicecontrol",
+      "https://www.googleapis.com/auth/service.management.readonly",
+      "https://www.googleapis.com/auth/trace.append",
+      "https://www.googleapis.com/auth/cloud-platform"
     ]
 
     labels = {
@@ -52,11 +79,13 @@ resource "google_container_node_pool" "primary" {
 
     # preemptible  = true
     machine_type = "n1-standard-1"
+    disk_size_gb = 10
     tags         = ["gke-node", "${var.project}-gke"]
     metadata = {
       disable-legacy-endpoints = "true"
     }
   }
+  depends_on = [google_container_cluster.primary]
 }
 
 
@@ -69,17 +98,56 @@ output "kubernetes_cluster_name" {
 resource "google_cloudbuild_trigger" "rlt-test" {
   trigger_template {
     branch_name = "master"
-    repo_name   = "rtl-test"
+    repo_name   = var.name
   }
   project = var.project
 
+
+  /* TO DO 
+  further notes in ../application/rlt-test/cloudbuild.yaml
+  
+  include google_cloudbuild_trigger build steps directly within terraform
+  rather than referencing an alternative file and deploy through tiller and helm
+
+
+  helm package ./
+  helm repo index rtl-test-charts --url https://console.cloud.google.com/storage/browser/rtl-test-gcs
+  gsutil rsync -d ./rtl-test-charts gs://rtl-test-gcs
+
+  */
+
+
   #  substitutions = {
-  #    _FOO = "bar"
-  #    _BAZ = "qux"
+  #    PROJECT_ID = var.project
   #  }
 
-  filename = "application/rlt-test//cloudbuild.yaml"
+  # build {
+  #   steps:
+  # # build the container image
+  #   - name: "gcr.io/cloud-builders/docker"
+  #     args: ["build", "-t", "gcr.io/$PROJECT_ID/rlt-test:latest", "."]
+  # # push container image
+  #   - name: "gcr.io/cloud-builders/docker"
+  #     args: ["push", "gcr.io/$PROJECT_ID/rlt-test:latest"]
+  # # deploy container image to GKE
+  #   - name: "gcr.io/cloud-builders/gke-deploy"
+  #     args:
+  #     - run
+  #     - --filename=kubeconfig.yaml
+  #     - --image=gcr.io/$PROJECT_ID/rlt-test:latest
+  #     - --location=us-central1
+  #     - --cluster=my-vpc-native-cluster
+  # }
+
+  filename   = "../application/${var.name}/cloudbuild.yaml"
+  depends_on = [google_container_cluster.primary, google_container_node_pool.primary, google_storage_bucket_iam_member.viewer]
 }
+
+
+
+
+
+
 
 
 
